@@ -1,0 +1,38 @@
+name:                   haskdogs
+version:                1.0.0
+license:                BSD3
+license-file:           LICENSE
+category:               Documentation
+copyright:              
+author:                 
+maintainer:             
+synopsis:               Generate ctags file for given haskell project directory and it's levl1 dependencies
+cabal-Version:          >=1.6
+homepage:               http://github.com/ierton/haskdogs
+bug-reports:            ierton@gmail.com
+build-type:             Simple
+description:
+    
+    haskdogs is a small shellscript-like tool which creates tag file for entire
+    haskell project directory. It takes into account first-level dependencies by
+    recursively scanning imports and adding matching packages to the final
+    tag list.
+
+    As a result, programmer can use his/her text editor supporting tags (vim, for
+    example) to jump directly to definition of any standard or foreign function
+    he/she uses.
+
+    Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir' via
+    SHS so this tool will probably work on Linuxes and maybe Macs. Pure Windows
+    will fail to run it.
+
+executable haskdogs
+  hs-source-dirs:       src
+  main-is:              haskdogs.hs
+  build-depends:        base >= 4 && < 5, Cabal >= 1.8, HSH >= 2.0.3,
+                        filepath >= 1.1.0.4
+  ghc-options:          -fwarn-tabs -Wall
+
+source-repository head
+  type:     git
+  location: http://github.com/ierton/haskdogs
