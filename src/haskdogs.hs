@@ -1,4 +1,4 @@
-#!/usr/bin/runhaskell
+-- #!/usr/bin/runhaskell
 
 import HSH
 import Data.List
