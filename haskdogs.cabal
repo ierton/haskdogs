@@ -13,6 +13,7 @@ Maintainer:          ierton@gmail.com
 Category:            Development
 Build-type:          Simple
 Cabal-version:       >=1.6
+extra-source-files:  README
 Description:
     haskdogs is a small shellscript-like tool which creates tag file for entire
     haskell project directory. It takes into account first-level dependencies by
