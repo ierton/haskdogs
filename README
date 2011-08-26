@@ -10,9 +10,8 @@ As a result, programmer can use his/her text editor supporting tags (vim, for
 example) to jump directly to definition of any standard or foreign function
 he/she uses.
 
-Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir' via
-SHS so this tool will probably work on Linuxes and maybe Macs. Pure Windows
-will fail to run it.
+Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir'
+so this tool will run, but probably fail to work on pure Windows platforms.
 
 INSTALL
 =======

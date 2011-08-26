@@ -24,9 +24,8 @@ Description:
     example) to jump directly to definition of any standard or foreign function
     he/she uses.
 
-    Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir' via
-    SHS so this tool will probably work on Linuxes and maybe Macs. Pure Windows
-    will fail to run it.
+    Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir'
+    so this tool will likely fail to work on pure Windows platforms.
 
 Executable haskdogs
   Hs-source-dirs:       src
