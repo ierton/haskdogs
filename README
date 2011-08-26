@@ -17,6 +17,7 @@ will fail to run it.
 INSTALL
 =======
 
+0. cabal install hasktags
 1. git clone https://github.com/ierton/haskdogs
 2. cd haskdogs
 3. cabal install
