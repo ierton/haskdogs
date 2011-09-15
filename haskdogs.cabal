@@ -33,7 +33,6 @@ Executable haskdogs
   Main-is:              haskdogs.hs
   Build-depends:        base >= 3 && < 5, Cabal >= 1.6, HSH >= 2.0.3, filepath >= 1.1.0.3
   Ghc-options:          -fwarn-tabs -Wall
-  Build-tools:          hasktags
   
 Source-repository head
   Type:     git
