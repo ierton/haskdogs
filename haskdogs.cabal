@@ -3,7 +3,7 @@
 -- http://www.haskell.org/cabal/release/cabal-latest/doc/users-guide/authors.html#pkg-descr.
 -- The name of the package.
 Name:                haskdogs
-Version:             0.1
+Version:             0.2
 Synopsis:            Generate ctags file for haskell project directory and it's deps
 Homepage:            http://github.com/ierton/haskdogs
 License:             BSD3
