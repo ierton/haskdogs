@@ -27,6 +27,9 @@ Description:
     Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir'
     so this tool will likely fail to work on pure Windows platforms.
 
+    Starting from 0.3, cmdline args will be passed to hasktags followed by a 
+    filelist generated.
+
 Executable haskdogs
   Hs-source-dirs:       src
   Main-is:              haskdogs.hs
