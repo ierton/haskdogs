@@ -27,9 +27,8 @@ RUNNING
 
 1. Make sure yoy have installed hasktags and put it in PATH. Hasktags is being
 called by haskdogs by name.  
-2. Make shure that $HOME/.cabal/var/haskdogs does exist.
-3. cd to your Haskell project dir
-4. run haskdogs
+2. cd to your Haskell project dir
+3. run haskdogs (cmdline args will be passed to hasktags followed by a filelist generated)
 
 --
 Sergey 
