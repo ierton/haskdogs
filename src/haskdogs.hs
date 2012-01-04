@@ -59,24 +59,10 @@ unpackModule p = do
 
 unpackModules ms = mapM unpackModule ms >>= return . filter (/=[])
 
-which :: String -> IO (String, IO (String,ExitCode))
-which n = run ("which", [n])
-
-checkapp appname = do
-    (_,ec) <- which appname >>= return . snd >>= id
-    case ec of
-        ExitSuccess -> return ()
-        _ -> do
-            putStrLn $ "Please Install \"" ++ appname ++ "\" application"
-            exitWith ec
-
 -- Directory to unpack sources into
 sourcedir = glob "~" >>= return . (</> ".haskdogs") . head
 
 gentags flags = do
-    checkapp "cabal"
-    checkapp "ghc-pkg"
-    checkapp "hasktags"
     d <- sourcedir
     testdir d (return ()) (run ("mkdir",["-p",d]))
     files <- bracketCD "." $ do
