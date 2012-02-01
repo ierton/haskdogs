@@ -1,5 +1,6 @@
 import HSH
 import Data.List
+import Control.Applicative
 import Control.Monad
 import System.Exit
 import System.Environment
@@ -13,6 +14,7 @@ cabal_unpack p = ("cabal", ["unpack", p])
 
 -- Finds *hs in current dir, recursively
 findSources :: [String] -> IO [String]
+findSources [] = return []
 findSources d = run $ find_in_dirs d "*hs"
 
 -- Produces list of imported modules for file.hs given
@@ -57,7 +59,7 @@ unpackModule p = do
                 Right _ -> return fullpath
         )
 
-unpackModules ms = mapM unpackModule ms >>= return . filter (/=[])
+unpackModules ms = filter (/="") <$> mapM unpackModule ms
 
 which :: String -> IO (String, IO (String,ExitCode))
 which n = run ("which", [n])
