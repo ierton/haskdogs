@@ -1,4 +1,4 @@
-HASKDOGS
+HaskDogs
 ========
 
 Haskdogs is a shellscript-like tool which creates tag file for entire
@@ -15,7 +15,7 @@ commands such as 'cd', 'mkdir' and so on. Also it would run 'cabal' and ghc-pkg'
 in order to obtain package information.
 
 INSTALL
-=======
+-------
 
 Check the dependencies. Currently they are: cabal, ghc, hasktags, GNU find,
 which and shell.
@@ -27,7 +27,7 @@ which and shell.
 4. export PATH="$HOME/.cabal/bin:$PATH"
 
 RUNNING
-=======
+-------
 
 1. Make sure yoy have installed hasktags and put it in PATH.
 
