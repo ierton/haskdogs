@@ -38,10 +38,6 @@ RUNNING
 3. run haskdogs (cmdline args will be passed to hasktags followed by a filelist generated)
 
     $ haskdogs
-    Already unpacked Cabal-1.16.0
-    Already unpacked base-4.6.0.1
-    Already unpacked mtl-2.1.2
-    Already unpacked transformers-0.3.0.0
 
 
 --
