@@ -39,16 +39,16 @@ RUNNING
 
     $ haskdogs
 
-HINTS
------
+HINT
+----
 
-Hasdogs (and underlying hasktags) use simple scanning algorithm so it is
-often a case that single identifier may be listed in many sources. Vim offers
-:tag and :ts commands to deal with such situations but it somewhat cumbersome to
-type them all every time.
+Hasdogs (and underlying hasktags) use simple scanning algorithm so it sometimes get confused
+facing functions which have identical names. Hasktags includes all of them in the output file so it
+is up to user to decide which one to jump to. Vim offers :tag and :ts commands to deal with such
+situations but it is somewhat cumbersome to type them every time.
 
-To speedup things a bit I use the following vim function which jumps to next it
-finds.
+To speedup things a bit I use the following vim function which jumps to the next tag it found. User
+could just press C-] several times to loop through the tags quickly.
 
     " Cyclic tag navigation {{{
     let g:rt_cw = ''
