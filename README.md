@@ -39,6 +39,38 @@ RUNNING
 
     $ haskdogs
 
+HINTS
+-----
+
+Hasdogs (and underlying hasktags) use simple scanning algorithm so it is
+often a case that single identifier may be listed in many sources. Vim offers
+:tag and :ts commands to deal with such situations but it somewhat cumbersome to
+type them all every time.
+
+To speedup things a bit I use the following vim function which jumps to next it
+finds.
+
+    " Cyclic tag navigation {{{
+    let g:rt_cw = ''
+    function! RT2()
+      let cw = expand('<cword>')
+
+      if cw != g:rt_cw
+        execute 'tag ' . cw
+        call search(cw,'c',line('.'))
+      else
+        try
+          execute 'tnext'
+        catch /.*/
+          execute 'trewind'
+        endtry
+        call search(cw,'c',line('.'))
+      endif
+      let g:rt_cw = cw
+
+    endfunction
+    map <C-]> :call RT2()<CR>
+    " }}}
 
 --
 Sergey 
