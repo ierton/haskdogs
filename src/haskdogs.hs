@@ -1,3 +1,5 @@
+module Main (main) where
+
 import HSH
 import Data.List
 import Control.Applicative
@@ -7,21 +9,27 @@ import System.Exit
 import System.Environment
 import System.FilePath
 
-find_in_dirs dirs p = ("find", dirs ++ ["-name", p])
+eprint = hPutStrLn stderr
 
+-- GNU find command line
+find_in_dirs dirs p = ("find", dirs ++ (words "-type f -and -name") ++ [p])
+
+-- ghc-pkg command line
 ghc_pkg_find m = ("ghc-pkg", ["find-module", m])
 
+-- cabal unpack command line
 cabal_unpack p = ("cabal", ["unpack", p])
 
 -- Finds *hs in current dir, recursively
 findSources :: [String] -> IO [String]
 findSources [] = return []
-findSources d = run $ find_in_dirs d "*hs"
+findSources d = run $ find_in_dirs d "*\\.hs"
 
 -- Produces list of imported modules for file.hs given
 findImports :: [String] -> IO [String]
 findImports s = run $ catFrom s -|- extractImports
 
+-- Search for 'import' declarations
 extractImports = nub . sort . filter (/=[]) . map (grepImports . words)
 
 grepImports ("import":"qualified":x:_) = x
@@ -47,12 +55,12 @@ testdir dir fyes fno = do
 unpackModule p = do
     srcdir <- sourcedir
     let fullpath = srcdir </> p
-    testdir fullpath 
-        (do 
-            putStrLn $ "Already unpacked " ++ p
+    testdir fullpath
+        (do
+            eprint $ "Already unpacked " ++ p
             return fullpath
-        ) 
-        (do 
+        )
+        (do
             cd srcdir
             ec <- tryEC (runIO (cabal_unpack p))
             case ec of
@@ -62,6 +70,7 @@ unpackModule p = do
 
 unpackModules ms = filter (/="") <$> mapM unpackModule ms
 
+-- Run GNU which tool
 which :: String -> IO (String, IO (String,ExitCode))
 which n = run ("which", [n])
 
@@ -70,7 +79,7 @@ checkapp appname = do
     case ec of
         ExitSuccess -> return ()
         _ -> do
-            putStrLn $ "Please Install \"" ++ appname ++ "\" application"
+            eprint $ "Please Install \"" ++ appname ++ "\" application"
             exitWith ec
 
 -- Directory to unpack sources into
@@ -83,28 +92,33 @@ gentags dirs flags = do
     d <- sourcedir
     testdir d (return ()) (run ("mkdir",["-p",d]))
     files <- bracketCD "." $ do
-        ss_local <- findSources dirs
-        ss_l1deps <- findImports ss_local >>= inames2modules >>= unpackModules >>= findSources
-        return $ ss_local ++ ss_l1deps
+      ss_local <- findSources dirs
+      when (null ss_local) $ do
+        fail $ "haskdogs were not able to find any sources in " ++ (unwords dirs)
+      ss_l1deps <- findImports ss_local >>= inames2modules >>= unpackModules >>= findSources
+      return $ ss_local ++ ss_l1deps
     runIO $ ("hasktags", flags ++ files)
 
 help = do
-    putStrLn "haskdogs: generates tags file for haskell project directory"
-    putStrLn "Usage:"
-    putStrLn "    haskdogs [FLAGS]"
-    putStrLn "        FLAGS will be passed to hasktags as-is followed by"
-    putStrLn "        a list of files. Defaults to -c."
+    eprint "haskdogs: generates tags file for haskell project directory"
+    eprint "Usage:"
+    eprint "    haskdogs [-d (FILE|'-')] [FLAGS]"
+    eprint "        FLAGS will be passed to hasktags as-is followed by"
+    eprint "        a list of files. Defaults to -c -x."
     return ()
 
-amain [] = gentags ["."] ["-c"]
+defflags = ["-c", "-x"]
+
+amain [] = gentags ["."] defflags
 amain ("-d" : dirfile : flags) = do
     file <- if (dirfile=="-") then return stdin else openFile dirfile ReadMode
     dirs <- lines <$> hGetContents file
-    gentags dirs $ ["-c"] ++ flags
-amain ("-h":_) = help
-amain ("-?":_) = help
-amain ("--help":_) = help
-amain flags = gentags ["."] flags
+    gentags dirs (if null flags then defflags else flags)
+amain flags 
+  | "-h"     `elem` flags = help
+  | "--help" `elem` flags = help
+  | "-?"     `elem` flags = help
+  | otherwise = gentags ["."] flags
 
 main :: IO()
 main = getArgs >>= amain
