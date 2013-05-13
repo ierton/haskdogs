@@ -36,7 +36,7 @@ grepImports ("import":"qualified":x:_) = x
 grepImports ("import":x:_) = x
 grepImports _ = []
 
--- Maps import name to haskel package name
+-- Maps import name to haskell package name
 iname2module :: String -> IO String
 iname2module m = run $ ghc_pkg_find m -|- egrep "^ +[a-zA-Z]" -|- map (head . words) -|- highver
     where highver [] = []
