@@ -39,38 +39,43 @@ RUNNING
 
     $ haskdogs
 
-HINT
-----
+VIM HINT
+--------
 
-Hasdogs (and underlying hasktags) use simple scanning algorithm so it sometimes get confused
-facing functions which have identical names. Hasktags includes all of them in the output file so it
-is up to user to decide which one to jump to. Vim offers :tag and :ts commands to deal with such
-situations but it is somewhat cumbersome to type them every time.
+Hasdogs (and underlying Hasktags) use simple scanning algorithm so it may become
+confused facing functions with identical names. In this case Hasktags includes
+all of them in the output file so user has to decide which tag to jump to. Vim
+offers :tag and :ts commands to deal with such situations but it is somewhat
+cumbersome to type them every time.
 
-To speedup things a bit I use the following vim function which jumps to the next tag it found. User
-could just press C-] several times to loop through the tags quickly.
+To speedup things a bit I use the following vim binding. It iterates over all
+same tags quickly with just one C-] command.
 
     " Cyclic tag navigation {{{
-    let g:rt_cw = ''
-    function! RT2()
-      let cw = expand('<cword>')
-
-      if cw != g:rt_cw
-        execute 'tag ' . cw
-        call search(cw,'c',line('.'))
-      else
-        try
-          execute 'tnext'
-        catch /.*/
-          execute 'trewind'
-        endtry
-        call search(cw,'c',line('.'))
-      endif
-      let g:rt_cw = cw
-
-    endfunction
-    map <C-]> :call RT2()<CR>
+	let g:rt_cw = ''
+	function! RT()
+		let cw = expand('<cword>')
+		try
+			if cw != g:rt_cw
+				execute 'tag ' . cw
+				call search(cw,'c',line('.'))
+			else
+				try
+					execute 'tnext'
+				catch /.*/
+					execute 'trewind'
+				endtry
+				call search(cw,'c',line('.'))
+			endif
+			let g:rt_cw = cw
+		catch /.*/
+			echo "no tags on " . cw
+		endtry
+	endfunction
+	map <C-]> :call RT()<CR>
     " }}}
+
+Just copy the code above to your ~/.vimrc and reload the vim.
 
 --
 Sergey 
