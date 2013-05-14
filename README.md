@@ -20,7 +20,7 @@ INSTALL
 Check the dependencies. Currently they are: cabal, ghc-pkg, hasktags, GNU find,
 which and shell.
 
-	cabal install hasktags haskdogs
+	$ cabal install hasktags haskdogs
 
 Make sure that PATH contains path to your cabal binaries directory ($HOME/.cabal/bin by default).
 
@@ -31,11 +31,13 @@ RUNNING
 
 2. cd to your Haskell project dir
 
-    $ cd $HOME/my-haskell-project
+	$ cd $HOME/my-haskell-project
 
-3. run haskdogs (cmdline args will be passed to hasktags followed by a filelist generated)
+3. Run haskdogs without arguments to generate tags file in Vim-compatible format
 
-    $ haskdogs
+	$ haskdogs
+	
+Emacs users would probably want to add -e option to build Emacs-compatible TAGS.
 
 VIM HINT
 --------
