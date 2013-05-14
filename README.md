@@ -17,7 +17,7 @@ in order to obtain package information.
 INSTALL
 -------
 
-Check the dependencies. Currently they are: cabal, ghc, hasktags, GNU find,
+Check the dependencies. Currently they are: cabal, ghc-pkg, hasktags, GNU find,
 which and shell.
 
 	cabal install hasktags haskdogs
