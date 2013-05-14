@@ -11,19 +11,13 @@ import System.FilePath
 
 eprint = hPutStrLn stderr
 
--- GNU find command line
-find_in_dirs dirs p = ("find", dirs ++ (words "-type f -and -name") ++ [p])
-
--- ghc-pkg command line
-ghc_pkg_find m = ("ghc-pkg", ["find-module", m])
-
 -- cabal unpack command line
 cabal_unpack p = ("cabal", ["unpack", p])
 
 -- Finds *hs in current dir, recursively
 findSources :: [String] -> IO [String]
 findSources [] = return []
-findSources d = run $ find_in_dirs d "*\\.hs"
+findSources d = run $ ("find", d ++ words "-type f -and ( -name *\\.hs -or -name *\\.lhs )")
 
 -- Produces list of imported modules for file.hs given
 findImports :: [String] -> IO [String]
@@ -38,9 +32,10 @@ grepImports _ = []
 
 -- Maps import name to haskell package name
 iname2module :: String -> IO String
-iname2module m = run $ ghc_pkg_find m -|- egrep "^ +[a-zA-Z]" -|- map (head . words) -|- highver
+iname2module m = run $ ghc_pkg m -|- map (head . words) -|- highver
     where highver [] = []
           highver s = last (lines s)
+          ghc_pkg m = ("ghc-pkg", ["--simple-output", "find-module", m])
 
 inames2modules :: [String] -> IO [String]
 inames2modules is = forM is (iname2module) >>= return . nub . sort . filter (/=[])
@@ -64,7 +59,7 @@ unpackModule p = do
             cd srcdir
             ec <- tryEC (runIO (cabal_unpack p))
             case ec of
-                Left _ -> return ""
+                Left _ -> eprint ("Can't unpack " ++ p) >> return ""
                 Right _ -> return fullpath
         )
 
