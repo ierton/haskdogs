@@ -20,11 +20,9 @@ INSTALL
 Check the dependencies. Currently they are: cabal, ghc, hasktags, GNU find,
 which and shell.
 
-0. cabal install hasktags haskdogs
-1. git clone https://github.com/ierton/haskdogs
-2. cd haskdogs
-3. cabal configure && cabal install
-4. export PATH="$HOME/.cabal/bin:$PATH"
+	cabal install hasktags haskdogs
+
+Make sure that PATH contains path to your cabal binaries directory ($HOME/.cabal/bin by default).
 
 RUNNING
 -------
