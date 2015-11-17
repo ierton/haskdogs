@@ -79,9 +79,7 @@ unpackModule p = do
             return (Just fullpath)
         )
         (do
-            print $ "cd " <> srcdir
             cd srcdir
-            print $ "unpack " <> p
             (run (proc' "stack" ["unpack", p]) >> return (Just fullpath)) `catch` (\(_ :: ProcessException) -> do
                 eprint ("Can't unpack " ++ p)
                 return Nothing)
