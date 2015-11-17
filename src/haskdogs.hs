@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns, NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns, NoImplicitPrelude, ExtendedDefaultRules #-}
 module Main (main) where
 
 import ClassyPrelude.Conduit
@@ -13,10 +13,12 @@ import Data.List (nub)
 import System.IO (openFile, IOMode(..))
 import System.Directory (getHomeDirectory)
 
+default (ByteString)
+
 proc' :: CmdArg a => String -> [a] -> Segment ()
 proc' a l = proc a (map (unpack . toTextArg) l)
 
-stack_exec :: ByteString -> [ByteString] -> Segment ()
+stack_exec :: (CmdArg a, IsString a) => a -> [a] -> Segment ()
 stack_exec cmd args = proc' "stack" (["exec", cmd, "--"] ++ args)
 
 runOutput :: Segment () -> IO L.ByteString
@@ -65,7 +67,7 @@ inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM is (iname2mod
 
 testdir :: FilePath -> IO a -> IO a -> IO a
 testdir dir fyes fno = do
-    (ret :: Either ProcessException ()) <- try $ run $ test ("-d"::ByteString) dir
+    (ret :: Either ProcessException ()) <- try $ run $ test "-d" dir
     either (const fno) (const fyes) ret
 
 -- Unapcks haskel package to the sourcedir
@@ -105,7 +107,7 @@ gentags (map unpack -> dirs) (map unpack -> flags) = do
     checkapp "stack"
     checkapp "hasktags"
     d <- sourcedir
-    testdir d (return ()) (run $ mkdir ("-p"::ByteString) d)
+    testdir d (return ()) (run $ mkdir "-p" d)
     files <- do
       ss_local <- findSources dirs
       when (null ss_local) $ do
@@ -116,14 +118,11 @@ gentags (map unpack -> dirs) (map unpack -> flags) = do
 
 help :: IO ()
 help = do
-    p "haskdogs: generates tags file for haskell project directory"
-    p "Usage:"
-    p "    haskdogs [-d (FILE|'-')] [FLAGS]"
-    p "        FLAGS will be passed to hasktags as-is followed by"
-    p "        a list of files. Defaults to -c -x."
-  where
-    p :: ByteString -> IO ()
-    p = eprint
+    eprint "haskdogs: generates tags file for haskell project directory"
+    eprint "Usage:"
+    eprint "    haskdogs [-d (FILE|'-')] [FLAGS]"
+    eprint "        FLAGS will be passed to hasktags as-is followed by"
+    eprint "        a list of files. Defaults to -c -x."
 
 defflags :: [Text]
 defflags = ["-c", "-x"]
