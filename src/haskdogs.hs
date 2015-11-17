@@ -1,27 +1,20 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns, NoImplicitPrelude #-}
 module Main (main) where
 
-import qualified Prelude
 import ClassyPrelude.Conduit
 import Data.Conduit.Shell (run, proc, conduit, ($|), Segment, ProcessException(..), CmdArg(..))
-import Data.Conduit.Shell.PATH (find', test, cd, which, mkdir)
+import Data.Conduit.Shell.PATH (test, cd, which, mkdir)
 import qualified Data.Conduit.List as C
 import qualified Data.Conduit.Binary as C
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L
-import qualified Data.Text as T
 import Data.List (nub)
-import Control.Applicative
-import Control.Monad
 import System.IO (openFile, IOMode(..))
-import System.Exit
-import System.FilePath
-import System.Directory
-import System.Path.Glob (glob)
+import System.Directory (getHomeDirectory)
 
 proc' :: CmdArg a => String -> [a] -> Segment ()
-proc' a l = proc a (map (T.unpack . toTextArg) l)
+proc' a l = proc a (map (unpack . toTextArg) l)
 
 stack_exec :: ByteString -> [ByteString] -> Segment ()
 stack_exec cmd args = proc' "stack" (["exec", cmd, "--"] ++ args)
@@ -63,10 +56,10 @@ findModules files = do
 -- Maps import name to haskell package name
 iname2module :: ByteString -> IO (Maybe ByteString)
 iname2module name = do
-    stdout <- runOutput $
+    out <- runOutput $
         stack_exec "ghc-pkg" ["--simple-output", "find-module", name]
     return $ do -- Maybe monad
-        l <- lastMay (L.lines stdout)
+        l <- lastMay (L.lines out)
         lbs <- headMay (L.words l)
         return $ L.toStrict lbs
 
@@ -92,7 +85,7 @@ unpackModule p = do
             print $ "cd " <> srcdir
             cd srcdir
             print $ "unpack " <> p
-            (run (proc' "stack" ["unpack", p]) >> return (Just fullpath)) `catch` (\(e :: ProcessException) -> do
+            (run (proc' "stack" ["unpack", p]) >> return (Just fullpath)) `catch` (\(_ :: ProcessException) -> do
                 eprint ("Can't unpack " ++ p)
                 return Nothing)
         )
@@ -126,6 +119,7 @@ gentags (map unpack -> dirs) (map unpack -> flags) = do
       return $ ss_local ++ ss_l1deps
     run $ proc' "hasktags" (flags ++ files)
 
+help :: IO ()
 help = do
     p "haskdogs: generates tags file for haskell project directory"
     p "Usage:"
@@ -136,6 +130,7 @@ help = do
     p :: ByteString -> IO ()
     p = eprint
 
+defflags :: [Text]
 defflags = ["-c", "-x"]
 
 amain :: [Text] -> IO ()
