@@ -11,18 +11,20 @@ example) to jump directly to definition of any standard or foreign function
 he/she uses.
 
 Note, that haskdogs relies on some GNU programs as well as on Unix shell
-commands such as 'cd', 'mkdir' and so on. Also it would run 'cabal' and ghc-pkg'
+commands such as 'cd', 'mkdir' and so on. Also it would run 'stack' and ghc-pkg'
 in order to obtain package information.
 
 INSTALL
 -------
 
-Check the dependencies. Currently they are: cabal, ghc-pkg, hasktags, GNU find,
+Check the dependencies. Currently they are: stack, hasktags, GNU find,
 which and shell.
 
-	$ cabal install hasktags haskdogs
+Please follow stack's documentation(https://github.com/commercialhaskell/stack) to install stack.
 
-Make sure that PATH contains path to your cabal binaries directory ($HOME/.cabal/bin by default).
+	$ stack install hasktags haskdogs
+
+Make sure that PATH contains path to your stack binaries directory ($HOME/.local/bin by default).
 
 RUNNING
 -------
