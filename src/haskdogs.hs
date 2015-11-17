@@ -44,14 +44,11 @@ grepImports line = case B.words line of
 -- Produces list of imported modules for file.hs given
 findModules :: [FilePath] -> IO [ByteString]
 findModules files = do
-    s <- run ( proc' "cat" files
-            $| conduit ( C.lines
-                     =$= C.mapMaybe grepImports
-                     =$= C.consume
-                       )
+    runResourceT $ forM_ files sourceFile $$
+             ( C.lines
+           =$= C.mapMaybe grepImports
+           =$= C.consume
              )
-    return s
-    --return (concat s)
 
 -- Maps import name to haskell package name
 iname2module :: ByteString -> IO (Maybe ByteString)
