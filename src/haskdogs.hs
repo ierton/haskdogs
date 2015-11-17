@@ -1,115 +1,146 @@
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns #-}
 module Main (main) where
 
-import HSH
-import Data.List
+import qualified Prelude
+import ClassyPrelude.Conduit
+import Data.Conduit.Shell (run, proc, conduit, ($|), Segment, ShellException(..), mkdir, CmdArg(..))
+import Data.Conduit.Shell.PATH (find', cabal, test, cd, which)
+import qualified Data.Conduit.List as C
+import qualified Data.Conduit.Binary as C
+import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Char8 as L
+import qualified Data.Text as T
+import Data.List (nub)
 import Control.Applicative
 import Control.Monad
-import System.IO
+import System.IO (openFile, IOMode(..))
 import System.Exit
-import System.Environment
 import System.FilePath
+import System.Directory
+import System.Path.Glob (glob)
 
+proc' :: CmdArg a => String -> [a] -> Segment ()
+proc' a l = proc a (map (T.unpack . toTextArg) l)
+
+runOutput :: Segment () -> IO L.ByteString
+runOutput cmd = do
+    chunks <- run (cmd $| conduit C.consume)
+    return $ L.fromChunks chunks
+
+eprint :: (IOData a, MonadIO m) => a -> m ()
 eprint = hPutStrLn stderr
 
--- cabal unpack command line
-cabal_unpack p = ("cabal", ["unpack", p])
 
 -- Finds *hs in current dir, recursively
-findSources :: [String] -> IO [String]
-findSources [] = return []
-findSources d = run $ ("find", d ++ words "-type f -and ( -name *\\.hs -or -name *\\.lhs )")
+findSources :: [FilePath] -> IO [FilePath]
+findSources dirs = do
+    run (proc_find $| conduit (C.lines =$= C.map B.unpack =$= C.consume))
+  where
+    proc_find = proc' "find" $ dirs <> words "-type f -and ( -name *\\.hs -or -name *\\.lhs )"
+
+grepImports :: ByteString -> Maybe ByteString
+grepImports line = case B.words line of
+    ("import":"qualified":x:_) -> Just x
+    ("import":x:_) -> Just x
+    _ -> Nothing
 
 -- Produces list of imported modules for file.hs given
-findImports :: [String] -> IO [String]
-findImports s = run $ catFrom s -|- extractImports
-
--- Search for 'import' declarations
-extractImports = nub . sort . filter (/=[]) . map (grepImports . words)
-
-grepImports ("import":"qualified":x:_) = x
-grepImports ("import":x:_) = x
-grepImports _ = []
+findModules :: [FilePath] -> IO [ByteString]
+findModules files = do
+    s <- run ( proc' "cat" files
+            $| conduit ( C.lines
+                     =$= C.mapMaybe grepImports
+                     =$= C.consume
+                       )
+             )
+    return s
+    --return (concat s)
 
 -- Maps import name to haskell package name
-iname2module :: String -> IO String
-iname2module m = run $ ghc_pkg m -|- map (head . words) -|- highver
-    where highver [] = []
-          highver s = last (lines s)
-          ghc_pkg m = ("ghc-pkg", ["--simple-output", "find-module", m])
+iname2module :: ByteString -> IO (Maybe ByteString)
+iname2module name = do
+    stdout <- runOutput $
+        proc' "ghc-pkg" ["--simple-output", "find-module", B.unpack name]
+    return $ do -- Maybe monad
+        l <- lastMay (L.lines stdout)
+        lbs <- headMay (L.words l)
+        return $ L.toStrict lbs
 
-inames2modules :: [String] -> IO [String]
-inames2modules is = forM is (iname2module) >>= return . nub . sort . filter (/=[])
+inames2modules :: [ByteString] -> IO [FilePath]
+inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM is (iname2module)
 
+testdir :: FilePath -> IO a -> IO a -> IO a
 testdir dir fyes fno = do
-    ret <- run ("test",["-d", dir])
-    case ret of
-        ExitSuccess -> fyes
-        _ -> fno
+    (ret :: Either ShellException ()) <- try $ run $ test ("-d"::ByteString) dir
+    either (const fno) (const fyes) ret
 
 -- Unapcks haskel package to the sourcedir
+unpackModule :: FilePath -> IO (Maybe FilePath)
 unpackModule p = do
     srcdir <- sourcedir
     let fullpath = srcdir </> p
     testdir fullpath
         (do
             eprint $ "Already unpacked " ++ p
-            return fullpath
+            return (Just fullpath)
         )
         (do
             cd srcdir
-            ec <- tryEC (runIO (cabal_unpack p))
-            case ec of
-                Left _ -> eprint ("Can't unpack " ++ p) >> return ""
-                Right _ -> return fullpath
+            (run (cabal ("unpack"::ByteString) p) >> return (Just fullpath)) `catch` (\(e :: ShellException) -> do
+                eprint ("Can't unpack " ++ p)
+                return Nothing)
         )
 
-unpackModules ms = filter (/="") <$> mapM unpackModule ms
+unpackModules :: [FilePath] -> IO [FilePath]
+unpackModules ms = catMaybes <$> mapM unpackModule ms
 
 -- Run GNU which tool
-which :: String -> IO (String, IO (String,ExitCode))
-which n = run ("which", [n])
-
+checkapp :: String -> IO ()
 checkapp appname = do
-    (_,ec) <- which appname >>= return . snd >>= id
-    case ec of
-        ExitSuccess -> return ()
-        _ -> do
-            eprint $ "Please Install \"" ++ appname ++ "\" application"
-            exitWith ec
+    run (which appname) `onException`
+            eprint ("Please Install \"" ++ appname ++ "\" application")
 
 -- Directory to unpack sources into
-sourcedir = glob "~" >>= return . (</> ".haskdogs") . head
+sourcedir :: IO FilePath
+sourcedir = do
+    home <- getHomeDirectory
+    return $ home </> ".haskdogs"
 
-gentags dirs flags = do
+gentags :: [Text] -> [Text] -> IO ()
+gentags (map unpack -> dirs) (map unpack -> flags) = do
     checkapp "cabal"
     checkapp "ghc-pkg"
     checkapp "hasktags"
     d <- sourcedir
-    testdir d (return ()) (run ("mkdir",["-p",d]))
-    files <- bracketCD "." $ do
+    testdir d (return ()) (run $ mkdir ("-p"::ByteString) d)
+    files <- do
       ss_local <- findSources dirs
       when (null ss_local) $ do
-        fail $ "haskdogs were not able to find any sources in " ++ (unwords dirs)
-      ss_l1deps <- findImports ss_local >>= inames2modules >>= unpackModules >>= findSources
+        fail $ "haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
+      ss_l1deps <- findModules ss_local >>= inames2modules >>= unpackModules >>= findSources
       return $ ss_local ++ ss_l1deps
-    runIO $ ("hasktags", flags ++ files)
+    run $ proc' "hasktags" (flags ++ files)
 
 help = do
-    eprint "haskdogs: generates tags file for haskell project directory"
-    eprint "Usage:"
-    eprint "    haskdogs [-d (FILE|'-')] [FLAGS]"
-    eprint "        FLAGS will be passed to hasktags as-is followed by"
-    eprint "        a list of files. Defaults to -c -x."
-    return ()
+    p "haskdogs: generates tags file for haskell project directory"
+    p "Usage:"
+    p "    haskdogs [-d (FILE|'-')] [FLAGS]"
+    p "        FLAGS will be passed to hasktags as-is followed by"
+    p "        a list of files. Defaults to -c -x."
+  where
+    p :: ByteString -> IO ()
+    p = eprint
 
 defflags = ["-c", "-x"]
 
+amain :: [Text] -> IO ()
 amain [] = gentags ["."] defflags
 amain ("-d" : dirfile : flags) = do
-    file <- if (dirfile=="-") then return stdin else openFile dirfile ReadMode
+    file <- if (dirfile=="-") then return stdin else openFile (unpack dirfile) ReadMode
     dirs <- lines <$> hGetContents file
     gentags dirs (if null flags then defflags else flags)
-amain flags 
+amain flags
   | "-h"     `elem` flags = help
   | "--help" `elem` flags = help
   | "-?"     `elem` flags = help
@@ -117,4 +148,3 @@ amain flags
 
 main :: IO()
 main = getArgs >>= amain
-

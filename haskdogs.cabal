@@ -33,7 +33,7 @@ Description:
 Executable haskdogs
   Hs-source-dirs:       src
   Main-is:              haskdogs.hs
-  Build-depends:        base >= 3 && < 5, Cabal >= 1.6, HSH >= 2.0.3, filepath >= 1.1.0.3
+  Build-depends:        base >= 3, Cabal >= 1.6, conduit, shell-conduit, filepath >= 1.1.0.3, bytestring, conduit-extra, classy-prelude-conduit, MissingH, text, directory
   Ghc-options:          -fwarn-tabs
   
 Source-repository head
