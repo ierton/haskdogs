@@ -5,11 +5,11 @@
 Name:                haskdogs
 Version:             0.4.0
 Synopsis:            Generate ctags file for haskell project directory and it's deps
-Homepage:            http://github.com/ierton/haskdogs
+Homepage:            http://github.com/grwlf/haskdogs
 License:             BSD3
 License-file:        LICENSE
 Author:              Sergey Mironov
-Maintainer:          ierton@gmail.com
+Maintainer:          grrwlf@gmail.com
 Category:            Development
 Build-type:          Simple
 Cabal-version:       >=1.22
@@ -27,7 +27,7 @@ Description:
     Note, that haskdogs calls some Unix shell commands like 'test' or 'mkdir'
     so this tool will likely fail to work on pure Windows platforms.
 
-    Starting from 0.3, cmdline args will be passed to hasktags followed by a 
+    Starting from 0.3, cmdline args will be passed to hasktags followed by a
     filelist generated.
 
     Starting from 0.4, haskdogs will use stack toolchain.
@@ -46,7 +46,7 @@ Executable haskdogs
                       , shell-conduit >= 4.5
 
   Ghc-options:          -fwarn-tabs
-  
+
 Source-repository head
   Type:     git
   Location: http://github.com/ierton/haskdogs
