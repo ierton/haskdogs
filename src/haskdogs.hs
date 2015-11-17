@@ -3,8 +3,8 @@ module Main (main) where
 
 import qualified Prelude
 import ClassyPrelude.Conduit
-import Data.Conduit.Shell (run, proc, conduit, ($|), Segment, ShellException(..), mkdir, CmdArg(..))
-import Data.Conduit.Shell.PATH (find', cabal, test, cd, which)
+import Data.Conduit.Shell (run, proc, conduit, ($|), Segment, ProcessException(..), CmdArg(..))
+import Data.Conduit.Shell.PATH (find', test, cd, which, mkdir)
 import qualified Data.Conduit.List as C
 import qualified Data.Conduit.Binary as C
 import qualified Data.ByteString.Char8 as B
@@ -22,6 +22,9 @@ import System.Path.Glob (glob)
 
 proc' :: CmdArg a => String -> [a] -> Segment ()
 proc' a l = proc a (map (T.unpack . toTextArg) l)
+
+stack_exec :: ByteString -> [ByteString] -> Segment ()
+stack_exec cmd args = proc' "stack" (["exec", cmd, "--"] ++ args)
 
 runOutput :: Segment () -> IO L.ByteString
 runOutput cmd = do
@@ -61,7 +64,7 @@ findModules files = do
 iname2module :: ByteString -> IO (Maybe ByteString)
 iname2module name = do
     stdout <- runOutput $
-        proc' "ghc-pkg" ["--simple-output", "find-module", B.unpack name]
+        stack_exec "ghc-pkg" ["--simple-output", "find-module", name]
     return $ do -- Maybe monad
         l <- lastMay (L.lines stdout)
         lbs <- headMay (L.words l)
@@ -72,7 +75,7 @@ inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM is (iname2mod
 
 testdir :: FilePath -> IO a -> IO a -> IO a
 testdir dir fyes fno = do
-    (ret :: Either ShellException ()) <- try $ run $ test ("-d"::ByteString) dir
+    (ret :: Either ProcessException ()) <- try $ run $ test ("-d"::ByteString) dir
     either (const fno) (const fyes) ret
 
 -- Unapcks haskel package to the sourcedir
@@ -86,8 +89,10 @@ unpackModule p = do
             return (Just fullpath)
         )
         (do
+            print $ "cd " <> srcdir
             cd srcdir
-            (run (cabal ("unpack"::ByteString) p) >> return (Just fullpath)) `catch` (\(e :: ShellException) -> do
+            print $ "unpack " <> p
+            (run (proc' "stack" ["unpack", p]) >> return (Just fullpath)) `catch` (\(e :: ProcessException) -> do
                 eprint ("Can't unpack " ++ p)
                 return Nothing)
         )
@@ -109,8 +114,7 @@ sourcedir = do
 
 gentags :: [Text] -> [Text] -> IO ()
 gentags (map unpack -> dirs) (map unpack -> flags) = do
-    checkapp "cabal"
-    checkapp "ghc-pkg"
+    checkapp "stack"
     checkapp "hasktags"
     d <- sourcedir
     testdir d (return ()) (run $ mkdir ("-p"::ByteString) d)
