@@ -38,7 +38,7 @@ RUNNING
 3. Run haskdogs without arguments to generate tags file in Vim-compatible format
 
 	$ haskdogs
-	
+
 Emacs users would probably want to add -e option to build Emacs-compatible TAGS.
 
 VIM HINT
@@ -80,7 +80,7 @@ same tags quickly with just one C-] command.
 Just copy the code above to your ~/.vimrc and reload the vim.
 
 --
-Sergey 
-<ierton@gmail.com>
+Sergey
+<grrwlf@gmail.com>
 
 
