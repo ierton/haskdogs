@@ -74,7 +74,7 @@ optsParser = Opts
   <*> option auto (
         long "include-sandbox" <>
         value AUTO <>
-        help "(UNIMPLEMENTED!) Include .cabal-sandbox package databases (ON|OFF|AUTO)")
+        help "(!UNIMPLEMENTED!) Include .cabal-sandbox package databases")
   <*> many (argument str (metavar "OPTS" <> help "More hasktags options"))
 
 exename, versionId :: String
@@ -87,8 +87,7 @@ version = infoOption (printf "%s version %s" exename versionId)
 
 opts = info (helper <*> version <*> optsParser)
       ( fullDesc
-     <> progDesc "Generate C-suite to emit and parse binary formats"
-     <> header (exename ++ " - binary formats parser/generator" ))
+     <> header (exename ++ " - Recursive hasktags-based TAGS generator for a Haskell project" ))
 
 data RuntimeChecks = RTC {
     chk_has_stack :: Bool
