@@ -44,6 +44,7 @@ Executable haskdogs
                       , conduit >= 1.2.5
                       , conduit-extra >= 1.1.9.1
                       , shell-conduit >= 4.5
+                      , optparse-applicative
 
   Ghc-options:          -fwarn-tabs
 
