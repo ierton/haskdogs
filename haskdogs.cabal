@@ -34,7 +34,7 @@ Description:
 
 Executable haskdogs
   Hs-source-dirs:       src
-  Main-is:              haskdogs.hs
+  Main-is:              Main.hs
   Build-depends:        base >= 4.8
                       , filepath >= 1.1.0.3
                       , bytestring
