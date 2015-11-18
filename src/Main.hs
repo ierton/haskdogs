@@ -33,8 +33,7 @@ default (ByteString)
 -}
 
 data Opts = Opts {
-    cli_verbose :: Bool
-  , cli_dirlist_file :: FilePath
+    cli_dirlist_file :: FilePath
   , cli_hasktags_args1 :: String
   , cli_ghc_pkgs_args :: String
   , cli_use_stack :: Tristate
@@ -47,11 +46,7 @@ data Tristate = ON | OFF | AUTO
 
 optsParser :: Parser Opts
 optsParser = Opts
-  <$> flag False True (
-        long "verbose" <>
-        short 'v' <>
-        help "Be verbose" )
-  <*> strOption (
+  <$> strOption (
         long "dir-list" <>
         short 'd' <>
         metavar "FILE" <>
@@ -109,6 +104,8 @@ main = do
   Opts {..} <- execParser opts
 
   let
+
+    cli_verbose = True
 
     vprint  :: (IOData a, MonadIO m) => a -> m ()
     vprint a
