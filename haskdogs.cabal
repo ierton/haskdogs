@@ -32,7 +32,7 @@ Executable haskdogs
   Default-language:    Haskell2010
   Hs-source-dirs:       src
   Main-is:              Main.hs
-  Build-depends:        base >= 4.8
+  Build-depends:        base >= 4.8 && < 5
                       , filepath
                       , bytestring
                       , text
