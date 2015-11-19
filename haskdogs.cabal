@@ -1,5 +1,5 @@
 Name:                haskdogs
-Version:             0.4.1
+Version:             0.4.2
 Synopsis:            Generate tags file for Haskell project and its nearest deps
 Homepage:            http://github.com/grwlf/haskdogs
 License:             BSD3
