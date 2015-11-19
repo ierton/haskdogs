@@ -1,29 +1,19 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns, NoImplicitPrelude, ExtendedDefaultRules #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE RecordWildCards, ScopedTypeVariables, ViewPatterns #-}
 module Main (main) where
 
+import Control.Monad
 import Control.Applicative
-import ClassyPrelude.Conduit hiding ((<>), (<$>))
-import Data.Conduit.Shell (run, proc, conduit, ($|), Segment, ProcessException(..), CmdArg(..))
-import Data.Conduit.Shell.PATH (test, cd, which, mkdir)
-import qualified Data.Conduit.List as C
-import qualified Data.Conduit.Binary as C
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List (nub)
-import System.IO (openFile, IOMode(..))
-import System.Directory (getHomeDirectory, getCurrentDirectory)
+import Control.Exception
+import Data.Maybe
+import Data.List
+import System.IO
+import System.Directory
 import System.Process (readProcess)
+import System.FilePath
 
 import Options.Applicative
 import qualified Options.Applicative as O
-import Text.Printf
-
 import Data.Version
-
-default (ByteString)
 
 {-
   ___        _   _
@@ -86,17 +76,11 @@ exename = "haskdogs"
 versionId = "0.4.0"
 
 version :: Parser (a -> a)
-version = infoOption (printf "%s version %s" exename versionId)
+version = infoOption (exename ++ " version " ++ versionId)
                      (long "version" <> help "Show version number")
 
 opts = info (helper <*> version <*> optsParser)
-      ( fullDesc
-     <> header (exename ++ " - Recursive hasktags-based TAGS generator for a Haskell project" ))
-
-data RuntimeChecks = RTC {
-    chk_has_stack :: Bool
-  , chk_has_cabal :: Bool
-  } deriving(Show)
+      ( fullDesc <> header (exename ++ " - Recursive hasktags-based TAGS generator for a Haskell project" ))
 
 {-
  __  __       _
@@ -113,30 +97,40 @@ main = do
   Opts {..} <- execParser opts
 
   let
+    -- Directory to unpack sources into
+    getDataDir :: IO FilePath
+    getDataDir = do
+      x <- (</> ".haskdogs") <$> getHomeDirectory
+      createDirectoryIfMissing False x
+      return x
 
     cli_verbose = True
 
-    vprint  :: (IOData a, MonadIO m) => a -> m ()
     vprint a
       | cli_verbose = eprint a
       | otherwise = return ()
 
-    eprint :: (IOData a, MonadIO m) => a -> m ()
     eprint = hPutStrLn stderr
+
+    runp nm args inp = do
+      vprint $ nm ++ " " ++ unwords args
+      readProcess nm args inp
 
     -- Run GNU which tool
     checkapp :: String -> IO ()
     checkapp appname = do
-      run (which appname) `onException`
-        eprint ("Please Install \"" ++ appname ++ "\" application")
+      (runp "which" [appname] [] >> return ()) `onException`
+        (eprint ("Please Install \"" ++ appname ++ "\" application"))
 
     hasapp :: String -> IO Bool
     hasapp appname = do
         vprint $ "Cheking for " ++ appname ++ " with GNU which"
-        (run (which appname) >> return True) `catch`
+        (runp "which" [appname] [] >> return True) `catch`
           (\(e::SomeException) -> vprint ("GNU which falied to find " ++ appname) >> return False)
 
-  RTC {..} <-  (RTC <$> (hasapp "stack") <*> (hasapp "cabal"))
+  cwd <- getCurrentDirectory
+  datadir <- getDataDir
+  has_stack <- hasapp "stack"
 
   let
 
@@ -159,106 +153,64 @@ main = do
 
     cli_hasktags_args = (words cli_hasktags_args1) ++ cli_hasktags_args2
 
-    proc' :: CmdArg a => String -> [a] -> Segment ()
-    proc' a l = proc a (map (unpack . toTextArg) l)
+    runp_ghc_pkgs args = go cli_use_stack where
+      go ON = runp "stack" (["exec", "ghc-pkg", "--"] ++ args) []
+      go OFF = runp "ghc-pkg" args []
+      go AUTO = if has_stack then go ON else go OFF
 
-    ghc_pkgs :: (CmdArg a, IsString a) => [a] -> Segment ()
-    ghc_pkgs args = hm cli_use_stack where
-      hm ON = proc' "stack" (["exec", "ghc-pkg", "--"] ++ args)
-      hm OFF = proc' "ghc-pkg" args
-      hm AUTO = if chk_has_stack then hm ON else hm OFF
-
-    cabal_or_stack = hm cli_use_stack where
-      hm ON = "stack"
-      hm OFF = "cabal"
-      hm AUTO = if chk_has_stack then hm ON else hm OFF
-
-    runOutput :: Segment () -> IO L.ByteString
-    runOutput cmd = do
-        chunks <- run (cmd $| conduit C.consume)
-        return $ L.fromChunks chunks
+    cabal_or_stack = go cli_use_stack where
+      go ON = "stack"
+      go OFF = "cabal"
+      go AUTO = if has_stack then go ON else go OFF
 
     -- Finds *hs in dirs, but filter-out Setup.hs
     findSources :: [FilePath] -> IO [FilePath]
-    findSources dirs = do
-        x <- lines <$> readProcess "find" (dirs ++ words "-type f -and ( -name *\\.hs -or -name *\\.lhs )") []
-        -- !x <- run (proc_find $| conduit (C.lines =$= C.map B.unpack =$= C.consume))
-        -- vprint "Done finding sources"
-        return (filter (not . isSuffixOf "Setup.hs") x)
-      -- where
-        -- proc_find = proc' "find" $ dirs <> words "-type f -and ( -name *\\.hs -or -name *\\.lhs )"
+    findSources dirs =
+      filter (not . isSuffixOf "Setup.hs") . lines <$>
+      runp "find" (dirs ++ words "-type f -and ( -name *\\.hs -or -name *\\.lhs -or -name *\\.hsc )") []
 
-    grepImports :: ByteString -> Maybe ByteString
-    grepImports line = case B.words line of
+    grepImports :: String -> Maybe String
+    grepImports line = case words line of
         ("import":"qualified":x:_) -> Just x
         ("import":x:_) -> Just x
         _ -> Nothing
 
     -- Produces list of imported modules for file.hs given
-    findModules :: [FilePath] -> IO [ByteString]
-    findModules files = do
-        runResourceT $ forM_ files sourceFile $$
-                 ( C.lines
-               =$= C.mapMaybe grepImports
-               =$= C.consume
-                 )
+    findModules :: [FilePath] -> IO [String]
+    findModules files = (catMaybes . map grepImports . lines) <$> runp "cat" files []
 
     -- Maps import name to haskell package name
-    iname2module :: ByteString -> IO (Maybe ByteString)
-    iname2module name = do
-        out <- runOutput $
-            ghc_pkgs ["--simple-output", "find-module", name]
-        let x = do -- Maybe monad
-            l <- lastMay (L.lines out)
-            lbs <- headMay (L.words l)
-            return $ L.toStrict lbs
-        vprint $ "Import " ++ B.unpack name ++ " resolved to " ++ (maybe "NULL" B.unpack x)
-        return x
+    iname2module :: String -> IO (Maybe String)
+    iname2module iname = do
+        mod <- (listToMaybe . words) <$> (runp_ghc_pkgs ["--simple-output", "find-module", iname])
+        vprint $ "Import " ++ iname ++ " resolved to " ++ (fromMaybe "NULL" mod)
+        return mod
 
-    inames2modules :: [ByteString] -> IO [FilePath]
-    inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM (nub is) (iname2module)
-
-    testdir :: FilePath -> IO a -> IO a -> IO a
-    testdir dir fyes fno = do
-        (ret :: Either ProcessException ()) <- try $ run $ test "-d" dir
-        either (const fno) (const fyes) ret
+    inames2modules :: [String] -> IO [FilePath]
+    inames2modules is = nub . sort . catMaybes <$> forM (nub is) iname2module
 
     -- Unapcks haskel package to the sourcedir
     unpackModule :: FilePath -> IO (Maybe FilePath)
-    unpackModule p = do
-        cwd <- getCurrentDirectory
-        srcdir <- sourcedir
-        let fullpath = srcdir </> p
-        testdir fullpath
-            (do
-                vprint $ "Already unpacked " ++ p
-                return (Just fullpath)
-            )
-            (do
-                cd srcdir
-                (run (proc' cabal_or_stack ["unpack", p]) >> return (Just fullpath)) `catch` (\
-                  (e :: ProcessException) -> do
-                    eprint ("Can't unpack " ++ p)
-                    return Nothing)
-                <*
-                (cd cwd)
-            )
+    unpackModule ((datadir</>) -> p) = do
+        exists <- doesDirectoryExist (datadir</>p)
+        case exists of
+          True ->  do
+            vprint $ "Already unpacked " ++ p
+            return (Just p)
+          False -> do
+            bracket_ (setCurrentDirectory datadir) (setCurrentDirectory cwd) $
+              ( runp cabal_or_stack ["unpack", p] [] >> return (Just p)
+              ) `catch`
+              (\(_ :: SomeException) ->
+                eprint ("Can't unpack " ++ p) >> return Nothing
+              )
 
     unpackModules :: [FilePath] -> IO [FilePath]
     unpackModules ms = catMaybes <$> mapM unpackModule ms
 
-
-    -- Directory to unpack sources into
-    sourcedir :: IO FilePath
-    sourcedir = do
-        home <- getHomeDirectory
-        return $ home </> ".haskdogs"
-
     gentags :: IO ()
     gentags = do
       checkapp "hasktags"
-      d <- sourcedir
-      testdir d (return ()) (run $ mkdir "-p" d)
       files <- do
         dirs <- readDirFile
         ss_local <- (++) <$> readSourceFile <*> findSources dirs
@@ -266,7 +218,8 @@ main = do
           fail $ "haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
         ss_l1deps <- findModules ss_local >>= inames2modules >>= unpackModules >>= findSources
         return $ ss_local ++ ss_l1deps
-      run $ proc' "hasktags" (cli_hasktags_args ++ files)
+      runp "hasktags" (cli_hasktags_args ++ files) []
+      return ()
 
   {- _real_main_ -}
   gentags
