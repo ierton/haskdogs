@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ViewPatterns, NoImplicitPrelude, ExtendedDefaultRules #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns #-}
 module Main (main) where
 
 import Control.Applicative
@@ -14,6 +15,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (nub)
 import System.IO (openFile, IOMode(..))
 import System.Directory (getHomeDirectory, getCurrentDirectory)
+import System.Process (readProcess)
 
 import Options.Applicative
 import qualified Options.Applicative as O
@@ -34,6 +36,7 @@ default (ByteString)
 
 data Opts = Opts {
     cli_dirlist_file :: FilePath
+  , cli_filelist_file :: FilePath
   , cli_hasktags_args1 :: String
   , cli_ghc_pkgs_args :: String
   , cli_use_stack :: Tristate
@@ -52,6 +55,12 @@ optsParser = Opts
         metavar "FILE" <>
         value "" <>
         help "File containing directory list to process" )
+  <*> strOption (
+        long "file-list" <>
+        short 'f' <>
+        metavar "FILE" <>
+        value "" <>
+        help "File containing Haskell sources to process" )
   <*> strOption (
         long "hasktags-args" <>
         metavar "OPTS" <>
@@ -131,14 +140,22 @@ main = do
 
   let
 
+    readLinedFile f =
+      lines <$> (hGetContents =<< (
+        if (f=="-")
+          then return stdin
+          else openFile f ReadMode))
+
     readDirFile :: IO [FilePath]
     readDirFile
-      | null cli_dirlist_file = return ["."]
-      | otherwise =
-          lines <$> (hGetContents =<< (
-            if (cli_dirlist_file=="-")
-              then return stdin
-              else openFile cli_dirlist_file ReadMode))
+      | null cli_dirlist_file && null cli_filelist_file = return ["."]
+      | null cli_dirlist_file = return []
+      | otherwise = readLinedFile cli_dirlist_file
+
+    readSourceFile :: IO [FilePath]
+    readSourceFile
+      | null cli_filelist_file = return []
+      | otherwise = readLinedFile cli_filelist_file
 
     cli_hasktags_args = (words cli_hasktags_args1) ++ cli_hasktags_args2
 
@@ -164,10 +181,12 @@ main = do
     -- Finds *hs in dirs, but filter-out Setup.hs
     findSources :: [FilePath] -> IO [FilePath]
     findSources dirs = do
-        x <- run (proc_find $| conduit (C.lines =$= C.map B.unpack =$= C.consume))
+        x <- lines <$> readProcess "find" (dirs ++ words "-type f -and ( -name *\\.hs -or -name *\\.lhs )") []
+        -- !x <- run (proc_find $| conduit (C.lines =$= C.map B.unpack =$= C.consume))
+        -- vprint "Done finding sources"
         return (filter (not . isSuffixOf "Setup.hs") x)
-      where
-        proc_find = proc' "find" $ dirs <> words "-type f -and ( -name *\\.hs -or -name *\\.lhs )"
+      -- where
+        -- proc_find = proc' "find" $ dirs <> words "-type f -and ( -name *\\.hs -or -name *\\.lhs )"
 
     grepImports :: ByteString -> Maybe ByteString
     grepImports line = case B.words line of
@@ -197,7 +216,7 @@ main = do
         return x
 
     inames2modules :: [ByteString] -> IO [FilePath]
-    inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM is (iname2module)
+    inames2modules is = map B.unpack . nub . sort . catMaybes <$> forM (nub is) (iname2module)
 
     testdir :: FilePath -> IO a -> IO a -> IO a
     testdir dir fyes fno = do
@@ -207,6 +226,7 @@ main = do
     -- Unapcks haskel package to the sourcedir
     unpackModule :: FilePath -> IO (Maybe FilePath)
     unpackModule p = do
+        cwd <- getCurrentDirectory
         srcdir <- sourcedir
         let fullpath = srcdir </> p
         testdir fullpath
@@ -221,7 +241,7 @@ main = do
                     eprint ("Can't unpack " ++ p)
                     return Nothing)
                 <*
-                (cd srcdir)
+                (cd cwd)
             )
 
     unpackModules :: [FilePath] -> IO [FilePath]
@@ -237,11 +257,11 @@ main = do
     gentags :: IO ()
     gentags = do
       checkapp "hasktags"
-      dirs <- readDirFile
       d <- sourcedir
       testdir d (return ()) (run $ mkdir "-p" d)
       files <- do
-        ss_local <- findSources dirs
+        dirs <- readDirFile
+        ss_local <- (++) <$> readSourceFile <*> findSources dirs
         when (null ss_local) $ do
           fail $ "haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
         ss_l1deps <- findModules ss_local >>= inames2modules >>= unpackModules >>= findSources
