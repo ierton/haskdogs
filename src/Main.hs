@@ -215,11 +215,11 @@ main = do
         dirs <- readDirFile
         ss_local <- (++) <$> readSourceFile <*> findSources dirs
         when (null ss_local) $ do
-          fail $ "haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
+          fail $ "Haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
         ss_l1deps <- findModules ss_local >>= inames2modules >>= unpackModules >>= findSources
         return $ ss_local ++ ss_l1deps
       runp "hasktags" (cli_hasktags_args ++ files) []
-      return ()
+      putStrLn "\nSuccess"
 
   {- _real_main_ -}
   gentags
