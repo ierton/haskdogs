@@ -13,7 +13,8 @@ import System.FilePath
 
 import Options.Applicative
 import qualified Options.Applicative as O
-import Data.Version
+import Data.Version (showVersion)
+import qualified Paths_haskdogs as Paths
 
 {-
   ___        _   _
@@ -30,7 +31,7 @@ data Opts = Opts {
   , cli_hasktags_args1 :: String
   , cli_ghc_pkgs_args :: String
   , cli_use_stack :: Tristate
-  , cli_use_sandbox :: Tristate
+  -- , cli_use_sandbox :: Tristate
   , cli_hasktags_args2 :: [String]
   } deriving(Show)
 
@@ -65,21 +66,20 @@ optsParser = Opts
         long "use-stack" <>
         value AUTO <>
         help "Execute ghc-pkg via stack")
-  <*> option auto (
-        long "include-sandbox" <>
-        value AUTO <>
-        help "(!UNIMPLEMENTED!) Include .cabal-sandbox package databases")
+  -- <*> option auto (
+  --       long "include-sandbox" <>
+  --       value AUTO <>
+  --       help "(!UNIMPLEMENTED!) Include .cabal-sandbox package databases")
   <*> many (argument str (metavar "OPTS" <> help "More hasktags options"))
 
-exename, versionId :: String
+exename :: String
 exename = "haskdogs"
-versionId = "0.4.0"
 
-version :: Parser (a -> a)
-version = infoOption (exename ++ " version " ++ versionId)
+versionParser :: Parser (a -> a)
+versionParser = infoOption (exename ++ " version " ++ (showVersion Paths.version))
                      (long "version" <> help "Show version number")
 
-opts = info (helper <*> version <*> optsParser)
+opts = info (helper <*> versionParser <*> optsParser)
       ( fullDesc <> header (exename ++ " - Recursive hasktags-based TAGS generator for a Haskell project" ))
 
 {-
