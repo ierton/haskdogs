@@ -42,6 +42,7 @@ RUNNING
 Emacs users would probably want to add -e hasktags option to build Emacs-compatible TAGS.
 
 
+
     $ haskdogs --help
     haskdogs - Recursive hasktags-based TAGS generator for a Haskell project
 
@@ -54,10 +55,12 @@ Emacs users would probably want to add -e hasktags option to build Emacs-compati
       --version                Show version number
       -d,--dir-list FILE       File containing directory list to process
       -f,--file-list FILE      File containing Haskell sources to process
-      --hasktags-args OPTS     Arguments to pass to hasktags
+      --hasktags-args OPTS     Arguments to pass to hasktags. -c -x is the default
       --ghc-pkg-args OPTS      Arguments to pass to ghc-pkgs
-      --use-stack ARG          Execute ghc-pkg via stack
-      OPTS                     Hasktags options
+      --use-stack ARG          Execute ghc-pkg via stack, arg is ON, OFF or AUTO
+                               (the default)
+      OPTS                     More hasktags options, use `--' to pass flags
+                               starting with `-'
 
 
 The following error could be caused by (over)strict Haskell policy regarding

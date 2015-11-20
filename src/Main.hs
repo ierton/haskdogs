@@ -67,7 +67,7 @@ optsParser = Opts
   <*> option auto (
         long "use-stack" <>
         value AUTO <>
-        help "Execute ghc-pkg via stack")
+        help "Execute ghc-pkg via stack, arg is ON, OFF or AUTO (the default)")
   -- <*> option auto (
   --       long "include-sandbox" <>
   --       value AUTO <>
@@ -173,8 +173,8 @@ main = do
 
     grepImports :: String -> Maybe String
     grepImports line = case words line of
-        ("import":"qualified":x:_) -> Just x
-        ("import":x:_) -> Just x
+        ("import":"qualified":x:_) -> Just (filter (/=';') x)
+        ("import":x:_) -> Just (filter (/=';') x)
         _ -> Nothing
 
     -- Produces list of imported modules for file.hs given
