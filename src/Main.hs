@@ -38,6 +38,8 @@ data Opts = Opts {
 data Tristate = ON | OFF | AUTO
   deriving(Eq, Ord, Show, Read)
 
+def_hasktags_args = words "-c -x"
+
 optsParser :: Parser Opts
 optsParser = Opts
   <$> strOption (
@@ -55,8 +57,8 @@ optsParser = Opts
   <*> strOption (
         long "hasktags-args" <>
         metavar "OPTS" <>
-        value "-c -x" <>
-        help "Arguments to pass to hasktags")
+        value "" <>
+        help ("Arguments to pass to hasktags. " ++ unwords def_hasktags_args ++ " is the default"))
   <*> strOption (
         long "ghc-pkg-args" <>
         metavar "OPTS" <>
@@ -70,7 +72,7 @@ optsParser = Opts
   --       long "include-sandbox" <>
   --       value AUTO <>
   --       help "(!UNIMPLEMENTED!) Include .cabal-sandbox package databases")
-  <*> many (argument str (metavar "OPTS" <> help "More hasktags options"))
+  <*> many (argument str (metavar "OPTS" <> help "More hasktags options, use `--' to pass flags starting with `-'"))
 
 exename :: String
 exename = "haskdogs"
@@ -218,7 +220,7 @@ main = do
           fail $ "Haskdogs were not able to find any sources in " <> (intercalate ", " dirs)
         ss_l1deps <- findModules ss_local >>= inames2modules >>= unpackModules >>= findSources
         return $ ss_local ++ ss_l1deps
-      runp "hasktags" (cli_hasktags_args ++ files) []
+      runp "hasktags" ((if null cli_hasktags_args then def_hasktags_args else cli_hasktags_args) ++ files) []
       putStrLn "\nSuccess"
 
   {- _real_main_ -}

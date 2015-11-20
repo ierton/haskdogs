@@ -39,7 +39,37 @@ RUNNING
 
 	$ haskdogs
 
-Emacs users would probably want to add -e option to build Emacs-compatible TAGS.
+Emacs users would probably want to add -e hasktags option to build Emacs-compatible TAGS.
+
+
+    $ haskdogs --help
+    haskdogs - Recursive hasktags-based TAGS generator for a Haskell project
+
+    Usage: haskdogs [--version] [-d|--dir-list FILE] [-f|--file-list FILE]
+                    [--hasktags-args OPTS] [--ghc-pkg-args OPTS] [--use-stack ARG]
+                    [OPTS]
+
+    Available options:
+      -h,--help                Show this help text
+      --version                Show version number
+      -d,--dir-list FILE       File containing directory list to process
+      -f,--file-list FILE      File containing Haskell sources to process
+      --hasktags-args OPTS     Arguments to pass to hasktags
+      --ghc-pkg-args OPTS      Arguments to pass to ghc-pkgs
+      --use-stack ARG          Execute ghc-pkg via stack
+      OPTS                     Hasktags options
+
+
+The following error could be caused by (over)strict Haskell policy regarding
+Unicode locale:
+
+    haskdogs: fd:5: hGetContents: invalid argument (invalid byte sequence)
+
+It usually happens when the program tries to print Unicode character to
+non-unicode console. In order to overcome, try the following setting:
+
+    export LANG=en_US.UTF8
+
 
 VIM HINT
 --------
